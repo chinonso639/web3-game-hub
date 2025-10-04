@@ -1,0 +1,12 @@
+edited files for v1:
+  provider/socket-provider.tsk
+  lib/socket.tsk
+  pages/api/socket.tsk
+  created pages/_app.tsx
+  created .env
+  
+  command for mongodb rep
+   net stop MongoDB
+   & "C:\Program Files\MongoDB\Server\7.0\bin\mongod.exe" --dbpath="C:\data\db" --replSet=rs0
+   mongosh
+   rs.initiate()
