@@ -2,11 +2,14 @@
 
 import { useAccount } from "wagmi";
 import { WalletConnect } from "@/components/wallet-connect";
+import { NetworkChecker } from "@/components/network-checker";
+import { UsdtBalance } from "@/components/usdt-balance";
 import { GameLobby } from "@/components/game-lobby";
 import { GameBoard } from "@/components/game-board";
 import { UsernameModal } from "@/components/username-modal";
 import { useGame } from "@/hooks/use-game";
 import { useUsername } from "@/hooks/use-username";
+import { usePolygon } from "@/hooks/use-polygon";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dice1, Coins, Users, Zap } from "lucide-react";
 
@@ -14,6 +17,7 @@ export default function Home() {
   const { isConnected } = useAccount();
   const { gameState } = useGame();
   const { showModal, isLoading, saveUsername } = useUsername();
+  const { isCorrectNetwork } = usePolygon();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-blue-900/20">
@@ -35,6 +39,12 @@ export default function Home() {
           </p>
         </div>
 
+        {/* Network Checker */}
+        {isConnected && <NetworkChecker />}
+
+        {/* USDT Balance */}
+        {isConnected && isCorrectNetwork && <UsdtBalance />}
+
         {/* Features Banner */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card className="bg-slate-800/50 border-slate-700">
@@ -42,7 +52,7 @@ export default function Home() {
               <Coins className="w-8 h-8 text-yellow-400" />
               <div>
                 <h3 className="text-white font-semibold">1 USDT Stakes</h3>
-                <p className="text-gray-400 text-sm">Winner takes all</p>
+                <p className="text-gray-400 text-sm">On Polygon Network</p>
               </div>
             </CardContent>
           </Card>
@@ -62,7 +72,7 @@ export default function Home() {
               <Zap className="w-8 h-8 text-purple-400" />
               <div>
                 <h3 className="text-white font-semibold">5 Rounds</h3>
-                <p className="text-gray-400 text-sm">Best of five wins</p>
+                <p className="text-gray-400 text-sm">Powered by Polygon</p>
               </div>
             </CardContent>
           </Card>
@@ -84,7 +94,7 @@ export default function Home() {
                         1. Connect Wallet
                       </h3>
                       <p className="text-sm">
-                        Connect your MetaMask wallet to get started
+                        Connect MetaMask and switch to Polygon network
                       </p>
                     </div>
                     <div>
@@ -115,7 +125,14 @@ export default function Home() {
                 </CardContent>
               </Card>
             </div>
-          ) : gameState?.status === "active" ? (
+          ) : !isCorrectNetwork ? (
+            <div className="text-center">
+              <p className="text-gray-400">
+                Please switch to Polygon network to continue
+              </p>
+            </div>
+          ) : gameState?.status === "active" ||
+            gameState?.status === "completed" ? (
             <GameBoard />
           ) : (
             <GameLobby />

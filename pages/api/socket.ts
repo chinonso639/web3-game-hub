@@ -31,7 +31,6 @@ export default async function SocketHandler(
       });
 
       socket.on("create-game", async ({ walletAddress }) => {
-        console.log("[SOCKET EVENT] create-game received", walletAddress);
         try {
           const gameCode = Math.random()
             .toString(36)
@@ -44,7 +43,6 @@ export default async function SocketHandler(
           if (!player) {
             player = await prisma.player.create({ data: { walletAddress } });
           }
-          console.log("[create-game] Nickname for player:", player.nickname);
 
           const game = await prisma.game.create({
             data: { gameCode, player1Id: player.id, status: "waiting" },
@@ -64,11 +62,6 @@ export default async function SocketHandler(
       });
 
       socket.on("join-game", async ({ gameCode, walletAddress }) => {
-        console.log(
-          "[SOCKET EVENT] join-game received",
-          gameCode,
-          walletAddress
-        );
         try {
           let player = await prisma.player.findUnique({
             where: { walletAddress },
@@ -76,7 +69,6 @@ export default async function SocketHandler(
           if (!player) {
             player = await prisma.player.create({ data: { walletAddress } });
           }
-          console.log("[join-game] Nickname for player:", player.nickname);
 
           const game = await prisma.game.findUnique({ where: { gameCode } });
           if (!game) {
@@ -100,8 +92,21 @@ export default async function SocketHandler(
           );
           if (gameState) {
             socket.join(gameCode);
+            console.log(
+              "Player joined game:",
+              gameCode,
+              "Players:",
+              gameState.players.length
+            );
+
+            // Emit to all players in the room
             io.to(gameCode).emit("player-joined", gameState);
-            io.to(gameCode).emit("game-start", gameState);
+
+            // Add a small delay to ensure state is synchronized
+            setTimeout(() => {
+              console.log("Starting game for room:", gameCode);
+              io.to(gameCode).emit("game-start", gameState);
+            }, 100);
           } else {
             socket.emit("error", "Failed to join game");
           }
