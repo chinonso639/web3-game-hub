@@ -3,9 +3,9 @@ import { useAccount, useChainId, useSwitchChain } from "wagmi";
 import { polygon, polygonMumbai } from "wagmi/chains";
 import { toast } from "sonner";
 
-const POLYGON_USDT_ADDRESS = "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174";
+const POLYGON_USDT_ADDRESS = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F";
 const MUMBAI_USDT_ADDRESS = "0x326C977E6efc84E512bB9C30f76E30c160eD06FB"; // Mock USDT for testnet
-
+0xc2132d05d31c914a87c6611c10748aeb04b58e8f;
 export function usePolygon() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
