@@ -8,12 +8,14 @@ import { useSocket } from "@/providers/socket-provider";
 import { Trophy, Target, Users, Clock } from "lucide-react";
 
 export function GameBoard() {
-  const { gameState, makeGuess } = useGame();
+  const { gameState, makeGuess, startRoundTimer } = useGame();
   const { socket } = useSocket();
   const [selectedGuess, setSelectedGuess] = useState<number | null>(null);
   const [hasGuessed, setHasGuessed] = useState(false);
   const [roundResult, setRoundResult] = useState<any>(null);
   const [showResult, setShowResult] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(30);
+  const [timerActive, setTimerActive] = useState(false);
 
   useEffect(() => {
     if (!socket) return;
@@ -33,13 +35,49 @@ export function GameBoard() {
     socket.on("next-round", () => {
       setHasGuessed(false);
       setSelectedGuess(null);
+      setTimeLeft(30);
+      setTimerActive(true);
+      // Start backend timer for the new round
+      if (gameState?.gameCode) {
+        startRoundTimer(gameState.gameCode);
+      }
+    });
+
+    socket.on("game-start", (gameState) => {
+      setTimeLeft(30);
+      setTimerActive(true);
+      // Start timer for the first round
+      if (gameState.gameCode) {
+        // Start the round timer
+        setTimerActive(true);
+      }
     });
 
     return () => {
       socket.off("round-complete");
       socket.off("next-round");
+      socket.off("game-start");
     };
   }, [socket]);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (timerActive && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      setTimerActive(false);
+      // Emit event to server when time is up
+      socket?.emit("time-up", { gameCode: gameState?.gameCode });
+    }
+
+    return () => {
+      if (timer) {
+        clearInterval(timer);
+      }
+    };
+  }, [timerActive, timeLeft, socket, gameState?.gameCode]);
 
   if (!gameState) return null;
 
@@ -84,7 +122,10 @@ export function GameBoard() {
             <div className="flex justify-center gap-8 mt-2">
               <div>
                 <div className="text-lg font-bold text-blue-400">
-                  {gameState.rounds.filter((r) => r.winner === 0).length}
+                  {
+                    (gameState.rounds ?? []).filter((r) => r.winner === 0)
+                      .length
+                  }
                 </div>
                 <div className="text-sm text-gray-400">
                   {gameState.playerUsernames?.[0] || "Player 1"}
@@ -92,7 +133,10 @@ export function GameBoard() {
               </div>
               <div>
                 <div className="text-lg font-bold text-purple-400">
-                  {gameState.rounds.filter((r) => r.winner === 1).length}
+                  {
+                    (gameState.rounds ?? []).filter((r) => r.winner === 1)
+                      .length
+                  }
                 </div>
                 <div className="text-sm text-gray-400">
                   {gameState.playerUsernames?.[1] || "Player 2"}
@@ -162,7 +206,9 @@ export function GameBoard() {
               Correct Answer: {roundResult.correctAnswer}
             </div>
             <div className="text-green-400 text-lg font-semibold">
-              {roundResult.winner !== null
+              {roundResult.timeoutReason === "both"
+                ? "⏰ Both players timed out! Draw this round!"
+                : roundResult.winner !== null
                 ? `🎉 ${
                     gameState.playerUsernames?.[roundResult.winner] ||
                     `Player ${roundResult.winner + 1}`
@@ -180,11 +226,25 @@ export function GameBoard() {
       )}
 
       {/* Guess Interface */}
-      {!showResult && (
+      {!showResult && !isGameComplete && (
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader className="text-center">
             <CardTitle className="text-white">Make Your Guess</CardTitle>
-            <p className="text-gray-400">Choose 0 or 1</p>
+            <div className="flex items-center justify-center gap-2">
+              <p className="text-gray-400">Choose 0 or 1</p>
+            </div>
+            {timerActive && !hasGuessed && (
+              <div className={`flex items-center justify-center mt-4`}>
+                <div
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-900/50`}
+                >
+                  <Clock className="w-5 h-5 text-blue-400" />
+                  <span className="font-mono text-2xl font-bold text-blue-400">
+                    {timeLeft}s
+                  </span>
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent>
             <div className="flex justify-center gap-4 mb-6">
@@ -235,7 +295,7 @@ export function GameBoard() {
           <div className="flex justify-center gap-8">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-400">
-                {gameState.rounds.filter((r) => r.winner === 0).length}
+                {(gameState.rounds ?? []).filter((r) => r.winner === 0).length}
               </div>
               <div className="text-sm text-gray-400">
                 {gameState.playerUsernames?.[0] || "Player 1"}
@@ -244,7 +304,7 @@ export function GameBoard() {
             <div className="text-2xl font-bold text-gray-600">-</div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-400">
-                {gameState.rounds.filter((r) => r.winner === 1).length}
+                {(gameState.rounds ?? []).filter((r) => r.winner === 1).length}
               </div>
               <div className="text-sm text-gray-400">
                 {gameState.playerUsernames?.[1] || "Player 2"}

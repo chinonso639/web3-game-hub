@@ -88,6 +88,12 @@ export function useGame() {
     socket.emit("make-guess", { guess });
   };
 
+  const startRoundTimer = (gameCode: string) => {
+    if (!socket) return;
+
+    socket.emit("start-round-timer", gameCode);
+  };
+
   return {
     gameState,
     isLoading,
@@ -95,5 +101,6 @@ export function useGame() {
     createGame,
     joinGame,
     makeGuess,
+    startRoundTimer,
   };
 }

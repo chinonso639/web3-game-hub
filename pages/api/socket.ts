@@ -190,6 +190,169 @@ export default async function SocketHandler(
           socket.emit("error", "Failed to make guess");
         }
       });
+
+      socket.on("start-round-timer", (gameCode: string) => {
+        // Start 30-second timer for the first round when game starts
+        setTimeout(() => {
+          const gameState = gameManager.getGame(gameCode);
+          if (!gameState || gameState.status === "completed") return;
+
+          const currentRound =
+            gameState.rounds[gameState.currentRound - 1] || {};
+
+          // Check if both players have made their guesses
+          if (
+            currentRound.player1Guess !== undefined &&
+            currentRound.player2Guess !== undefined
+          ) {
+            return; // Round already completed
+          }
+
+          // Determine who didn't guess and make them lose
+          const correct = Math.floor(Math.random() * 2);
+          currentRound.correctAnswer = correct;
+
+          if (
+            currentRound.player1Guess === undefined &&
+            currentRound.player2Guess === undefined
+          ) {
+            // Both players timed out - it's a draw
+            currentRound.player1Guess = -1; // -1 indicates timeout
+            currentRound.player2Guess = -1;
+            currentRound.winner = null;
+            currentRound.timeoutReason = "both";
+          } else if (currentRound.player1Guess === undefined) {
+            // Player 1 timed out, Player 2 wins
+            currentRound.player1Guess = -1;
+            currentRound.winner = 1;
+            currentRound.timeoutReason = "player1";
+          } else if (currentRound.player2Guess === undefined) {
+            // Player 2 timed out, Player 1 wins
+            currentRound.player2Guess = -1;
+            currentRound.winner = 0;
+            currentRound.timeoutReason = "player2";
+          }
+
+          gameState.rounds[gameState.currentRound - 1] = currentRound;
+
+          // Check if game is complete
+          if (gameState.currentRound >= 5) {
+            const p1Wins = gameState.rounds.filter(
+              (r) => r.winner === 0
+            ).length;
+            const p2Wins = gameState.rounds.filter(
+              (r) => r.winner === 1
+            ).length;
+            gameState.status = "completed";
+            gameState.winner =
+              p1Wins > p2Wins
+                ? gameState.players[0]
+                : p2Wins > p1Wins
+                ? gameState.players[1]
+                : undefined;
+            gameState.winnerUsername =
+              p1Wins > p2Wins
+                ? gameState.playerUsernames?.[0]
+                : p2Wins > p1Wins
+                ? gameState.playerUsernames?.[1]
+                : undefined;
+          }
+
+          io.to(gameCode).emit("round-complete", {
+            roundData: currentRound,
+            gameState,
+          });
+
+          if (gameState.currentRound < 5 && gameState.status !== "completed") {
+            setTimeout(() => {
+              // Only increment and emit if not completed
+              if (gameState.status !== "completed") {
+                gameState.currentRound++;
+                io.to(gameCode).emit("next-round", gameState);
+              }
+            }, 3000);
+          }
+        }, 30000); // 30 second timer
+      });
+
+      socket.on("time-up", ({ gameCode }) => {
+        const gameState = gameManager.getGame(gameCode);
+        if (!gameState || gameState.status === "completed") return;
+        const round = gameState.rounds[gameState.currentRound - 1] || {};
+        let roundJustCompleted = false;
+        // If both players haven't guessed, mark as draw
+        if (
+          round.player1Guess === undefined &&
+          round.player2Guess === undefined
+        ) {
+          const correct = Math.floor(Math.random() * 2);
+          round.correctAnswer = correct;
+          round.player1Guess = -1;
+          round.player2Guess = -1;
+          round.winner = null;
+          round.timeoutReason = "both";
+          gameState.rounds[gameState.currentRound - 1] = round;
+          roundJustCompleted = true;
+        } else {
+          // Only process if player hasn't guessed yet
+          const playerIndex = gameState.players.indexOf(socket.id);
+          if (
+            (playerIndex === 0 && round.player1Guess === undefined) ||
+            (playerIndex === 1 && round.player2Guess === undefined)
+          ) {
+            const correct = Math.floor(Math.random() * 2);
+            round.correctAnswer = correct;
+            if (playerIndex === 0) {
+              round.player1Guess = -1;
+              round.winner = 1;
+              round.timeoutReason = "player1";
+            } else if (playerIndex === 1) {
+              round.player2Guess = -1;
+              round.winner = 0;
+              round.timeoutReason = "player2";
+            }
+            gameState.rounds[gameState.currentRound - 1] = round;
+            roundJustCompleted = true;
+          }
+        }
+        // Only increment round if a round was just completed
+        if (roundJustCompleted) {
+          // Check if game is complete
+          if (gameState.currentRound >= 5) {
+            const p1Wins = gameState.rounds.filter(
+              (r) => r.winner === 0
+            ).length;
+            const p2Wins = gameState.rounds.filter(
+              (r) => r.winner === 1
+            ).length;
+            gameState.status = "completed";
+            gameState.winner =
+              p1Wins > p2Wins
+                ? gameState.players[0]
+                : p2Wins > p1Wins
+                ? gameState.players[1]
+                : undefined;
+            gameState.winnerUsername =
+              p1Wins > p2Wins
+                ? gameState.playerUsernames?.[0]
+                : p2Wins > p1Wins
+                ? gameState.playerUsernames?.[1]
+                : undefined;
+          }
+          io.to(gameCode).emit("round-complete", {
+            roundData: round,
+            gameState,
+          });
+          if (gameState.currentRound < 5 && gameState.status !== "completed") {
+            setTimeout(() => {
+              if (gameState.status !== "completed") {
+                gameState.currentRound++;
+                io.to(gameCode).emit("next-round", gameState);
+              }
+            }, 3000);
+          }
+        }
+      });
     });
 
     res.socket.server.io = io;
