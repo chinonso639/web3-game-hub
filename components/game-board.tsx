@@ -75,16 +75,21 @@ export function GameBoard() {
   useEffect(() => {
     if (!timerActive || hasGuessed) return;
     if (timeLeft === 0) {
+      // stop the timer UI
       setTimerActive(false);
-      setHasGuessed(true);
-      // Optionally, you can trigger a timeout guess here
+      // notify server that time is up for this game so it can resolve the round
+      if (socket && gameState?.gameCode) {
+        socket.emit("time-up", { gameCode: gameState.gameCode });
+      }
+      // don't set hasGuessed=true here (that shows "Waiting for opponent...").
+      // The server will emit 'round-complete' which will drive the UI to show results.
       return;
     }
     const interval = setInterval(() => {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
-  }, [timerActive, timeLeft, hasGuessed]);
+  }, [timerActive, timeLeft, hasGuessed, socket, gameState?.gameCode]);
 
   useEffect(() => {
     if (!socket) return;
