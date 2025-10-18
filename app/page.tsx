@@ -27,56 +27,64 @@ export default function Home() {
         isLoading={isLoading}
       />
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2 flex items-center justify-center gap-3">
-            <Dice1 className="w-8 h-8 text-purple-400" />
-            Binary Guess Battle
-          </h1>
-          <p className="text-gray-400 text-lg">
-            The ultimate multiplayer guessing game with real cryptocurrency
-            stakes
-          </p>
-        </div>
+        {/* Only show header and features when not in game */}
+        {(!isConnected ||
+          !gameState ||
+          (gameState.status !== "active" &&
+            gameState.status !== "completed")) && (
+          <>
+            {/* Header */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-bold text-white mb-2 flex items-center justify-center gap-3">
+                <Dice1 className="w-8 h-8 text-purple-400" />
+                Binary Guess Battle
+              </h1>
+              <p className="text-gray-400 text-lg">
+                The ultimate multiplayer guessing game with real cryptocurrency
+                stakes
+              </p>
+            </div>
 
-        {/* Network Checker */}
-        {isConnected && <NetworkChecker />}
+            {/* Network Checker */}
+            {isConnected && <NetworkChecker />}
 
-        {/* USDT Balance */}
-        {isConnected && isCorrectNetwork && <UsdtBalance />}
+            {/* USDT Balance */}
+            {isConnected && isCorrectNetwork && <UsdtBalance />}
 
-        {/* Features Banner */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="flex items-center gap-3 p-4">
-              <Coins className="w-8 h-8 text-yellow-400" />
-              <div>
-                <h3 className="text-white font-semibold">1 USDT Stakes</h3>
-                <p className="text-gray-400 text-sm">On Polygon Network</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="flex items-center gap-3 p-4">
-              <Users className="w-8 h-8 text-blue-400" />
-              <div>
-                <h3 className="text-white font-semibold">
-                  Real-time Multiplayer
-                </h3>
-                <p className="text-gray-400 text-sm">Live opponents</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardContent className="flex items-center gap-3 p-4">
-              <Zap className="w-8 h-8 text-purple-400" />
-              <div>
-                <h3 className="text-white font-semibold">5 Rounds</h3>
-                <p className="text-gray-400 text-sm">Powered by Polygon</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Features Banner */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <Coins className="w-8 h-8 text-yellow-400" />
+                  <div>
+                    <h3 className="text-white font-semibold">1 USDT Stakes</h3>
+                    <p className="text-gray-400 text-sm">On Polygon Network</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <Users className="w-8 h-8 text-blue-400" />
+                  <div>
+                    <h3 className="text-white font-semibold">
+                      Real-time Multiplayer
+                    </h3>
+                    <p className="text-gray-400 text-sm">Live opponents</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-slate-800/50 border-slate-700">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <Zap className="w-8 h-8 text-purple-400" />
+                  <div>
+                    <h3 className="text-white font-semibold">5 Rounds</h3>
+                    <p className="text-gray-400 text-sm">Powered by Polygon</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
 
         {/* Main Content */}
         <div className="max-w-4xl mx-auto">
