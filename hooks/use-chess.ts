@@ -25,10 +25,10 @@ export function useChess() {
   });
   const [lastMove, setLastMove] = useState<ChessMove | null>(null);
 
-  // Hydrate from localStorage so state persists across pages (same provider)
+  // Hydrate from sessionStorage so state persists within the same tab (not across tabs/users)
   useEffect(() => {
     try {
-      const stored = localStorage.getItem("chess.state");
+      const stored = sessionStorage.getItem("chess.state");
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<ChessGameState>;
         setState((prev) => ({
@@ -255,7 +255,7 @@ export function useChess() {
     }
   }, [state.isPlaying]);
 
-  // Persist to localStorage on relevant state changes
+  // Persist to sessionStorage on relevant state changes (tab-scoped)
   useEffect(() => {
     try {
       const toStore: ChessGameState = {
@@ -264,7 +264,7 @@ export function useChess() {
         isPlaying: state.isPlaying,
         isMyTurn: state.isMyTurn,
       };
-      localStorage.setItem("chess.state", JSON.stringify(toStore));
+      sessionStorage.setItem("chess.state", JSON.stringify(toStore));
     } catch {
       // ignore
     }
@@ -281,7 +281,7 @@ export function useChess() {
       if (!chessSocket || !state.gameCode) {
         // Clear local state regardless
         try {
-          localStorage.removeItem("chess.state");
+          sessionStorage.removeItem("chess.state");
         } catch {}
         setState({
           gameCode: null,
@@ -299,7 +299,7 @@ export function useChess() {
         });
       });
       try {
-        localStorage.removeItem("chess.state");
+        sessionStorage.removeItem("chess.state");
       } catch {}
       setState({
         gameCode: null,

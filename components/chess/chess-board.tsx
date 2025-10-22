@@ -32,7 +32,7 @@ export function ChessBoard() {
     const urlCode = urlParams.get("game");
     const stored =
       typeof window !== "undefined"
-        ? JSON.parse(localStorage.getItem("chess.state") || "{}")
+        ? JSON.parse(sessionStorage.getItem("chess.state") || "{}")
         : {};
     const storedCode = stored?.gameCode as string | undefined;
 
