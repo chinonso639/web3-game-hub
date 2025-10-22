@@ -1,0 +1,150 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useGame } from "@/hooks/use-game";
+import { Dice1, Users, Copy } from "lucide-react";
+import Link from "next/link";
+import { toast } from "sonner";
+import { GameTypeSelector } from "./game-type-selector";
+import { GameType } from "@/lib/types";
+import { useSocket } from "@/providers/socket-provider";
+import { useRouter } from "next/navigation";
+
+export function GameLobby() {
+  const [joinCode, setJoinCode] = useState("");
+  const [selectedGame, setSelectedGame] = useState<GameType | null>(null);
+  const { gameState, isLoading, error, createGame, joinGame } = useGame();
+  const { socket } = useSocket();
+  const router = useRouter();
+
+  const handleCreateGame = async () => {
+    if (selectedGame === "guessing") {
+      await createGame();
+    } else if (selectedGame === "chess") {
+      socket?.emit("chess:create");
+    }
+  };
+
+  const handleJoinGame = async () => {
+    if (!joinCode) return;
+    if (selectedGame === "guessing") {
+      await joinGame(joinCode);
+    } else if (selectedGame === "chess") {
+      socket?.emit("chess:join", { gameCode: joinCode });
+    }
+  };
+
+  const copyGameCode = () => {
+    if (gameState?.gameCode) {
+      navigator.clipboard.writeText(gameState.gameCode);
+      toast.success("Game code copied to clipboard!");
+    }
+  };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("chess:gameCreated", ({ gameCode }) => {
+      toast.success("Chess game created! Share the code: " + gameCode);
+    });
+
+    socket.on("chess:joined", () => {
+      router.push("/chess");
+    });
+
+    socket.on("chess:error", ({ message }) => {
+      toast.error(message);
+    });
+
+    return () => {
+      socket.off("chess:gameCreated");
+      socket.off("chess:joined");
+      socket.off("chess:error");
+    };
+  }, [socket, router]);
+
+  if (!selectedGame) {
+    return <GameTypeSelector onSelect={setSelectedGame} />;
+  }
+
+  if (gameState && selectedGame === "guessing") {
+    if (gameState.status === "waiting") {
+      return (
+        <Card className="bg-slate-800 border-slate-700 max-w-md mx-auto">
+          <CardHeader className="text-center">
+            <CardTitle className="text-white flex items-center justify-center gap-2">
+              <Users className="w-5 h-5 text-blue-400" />
+              Waiting for Player
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between px-4 py-2 bg-slate-700 rounded-lg">
+              <span className="text-white">Game Code:</span>
+              <div className="flex items-center gap-2">
+                <span className="text-blue-400 font-mono">{gameState.gameCode}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={copyGameCode}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+  }
+
+  return (
+    <Card className="bg-slate-800 border-slate-700 max-w-md mx-auto">
+      <CardHeader className="text-center">
+        <CardTitle className="text-white">
+          {selectedGame === "guessing" ? "Guessing Game" : "Chess"} Lobby
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Button
+          className="w-full"
+          onClick={handleCreateGame}
+          disabled={isLoading}
+        >
+          <Dice1 className="mr-2 h-4 w-4" />
+          Create New Game
+        </Button>
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-slate-700" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-slate-800 px-2 text-slate-400">Or</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Enter game code"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value)}
+            className="bg-slate-900 border-slate-700 text-white"
+          />
+          <Button onClick={handleJoinGame} disabled={!joinCode || isLoading}>
+            Join
+          </Button>
+        </div>
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+        <Button
+          variant="ghost"
+          className="w-full"
+          onClick={() => setSelectedGame(null)}
+        >
+          Change Game
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}

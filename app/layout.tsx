@@ -6,6 +6,7 @@ import { SocketProvider } from "@/providers/socket-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ConnectionStatus } from "@/components/connection-status";
 import { WalletStatus } from "@/components/wallet-status";
+import { ChessSocketProvider } from "@/providers/chess-socket-provider";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -25,10 +26,12 @@ export default function RootLayout({
       <body className={`${inter.className} bg-slate-900 min-h-screen`}>
         <Web3Provider>
           <SocketProvider>
-            <WalletStatus />
-            <ConnectionStatus />
-            {children}
-            <Toaster />
+            <ChessSocketProvider>
+              <WalletStatus />
+              <ConnectionStatus />
+              {children}
+              <Toaster />
+            </ChessSocketProvider>
           </SocketProvider>
         </Web3Provider>
       </body>
