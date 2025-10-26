@@ -20,6 +20,9 @@ export default async function SocketHandler(
         origin: "*",
         methods: ["GET", "POST"],
       },
+      // Increase tolerance so backgrounded tabs don't drop easily
+      pingInterval: 25000,
+      pingTimeout: 60000,
     });
 
     io.on("connection", (socket) => {

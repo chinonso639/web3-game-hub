@@ -85,13 +85,9 @@ export class GameManager {
   removePlayer(playerId: string): void {
     const gameCode = this.playerToGame.get(playerId);
     if (gameCode) {
-      const game = this.games.get(gameCode);
-      if (game) {
-        game.players = game.players.filter((p) => p !== playerId);
-        if (game.players.length === 0) {
-          this.games.delete(gameCode);
-        }
-      }
+      // Do not delete the in-memory game when a player disconnects.
+      // Keeping the game allows the second player to join even if the creator is offline.
+      // We only clear the reverse lookup so a new socket.id can map on reconnection.
       this.playerToGame.delete(playerId);
     }
   }
