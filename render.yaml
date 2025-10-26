@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: web3-game-hub
+    runtime: node
+    plan: free # or starter for production stability
+    region: oregon # choose nearest region
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # will be set in Render dashboard or below
+      - key: NEXT_PUBLIC_SOCKET_URL
+        value: https://web3-game-hub.onrender.com # your live Render domain
+      - key: NEXTAUTH_SECRET
+        sync: false
+      - key: NEXTAUTH_URL
+        value: https://web3-game-hub.onrender.com
+      - key: PORT
+        value: 10000
+
+databases:
+  - name: mongodb
+    plan: free
+    region: oregon
