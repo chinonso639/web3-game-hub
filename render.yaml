@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free # or starter for production stability
     region: oregon # choose nearest region
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build
     startCommand: npm run start
     envVars:
       - key: NODE_ENV
