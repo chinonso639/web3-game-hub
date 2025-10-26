@@ -28,12 +28,14 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         await fetch("/api/socket");
 
         socketInstance = io(
-          process.env.NODE_ENV === "production"
-            ? undefined
+          typeof window !== "undefined"
+            ? window.location.origin
             : "https://web3-game-hub.onrender.com/",
           {
             path: "/api/socket",
             transports: ["polling", "websocket"], // ✅ pure websocket
+            withCredentials: true,
+            autoConnect: true,
           }
         );
         // socketInstance = io({
