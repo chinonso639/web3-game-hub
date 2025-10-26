@@ -31,24 +31,26 @@ export function ChessSocketProvider({
         // Kick API route to ensure Socket.IO server starts
         await fetch("/api/chess", { method: "GET" });
 
-        // s = io(
-        //   typeof window !== "undefined" ? window.location.origin : undefined,
-        //   {
-        //     path: "/api/chess-io",
-        //     transports: ["polling", "websocket"],
-        //     withCredentials: true,
-        //     autoConnect: true,
-        //   }
-        // );
         s = io(
-          typeof window !== "undefined" ? window.location.origin : undefined,
+          typeof window !== "undefined"
+            ? window.location.origin
+            : "https://web3-game-hub.onrender.com/",
           {
             path: "/api/chess-io",
-            transports: ["websocket"],
+            transports: ["polling", "websocket"],
             withCredentials: true,
             autoConnect: true,
           }
         );
+        // s = io(
+        //   typeof window !== "undefined" ? window.location.origin : undefined,
+        //   {
+        //     path: "/api/chess-io",
+        //     transports: ["websocket"],
+        //     withCredentials: true,
+        //     autoConnect: true,
+        //   }
+        // );
 
         s.on("connect", () => {
           setIsChessConnected(true);

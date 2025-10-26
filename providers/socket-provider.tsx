@@ -27,19 +27,19 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         // 👇 This ensures server is started before connecting websocket
         await fetch("/api/socket");
 
-        // socketInstance = io(
-        //   process.env.NODE_ENV === "production"
-        //     ? undefined
-        //     : "http://localhost:3000",
-        //   {
-        //     path: "/api/socket",
-        //     transports: ["polling", "websocket"], // ✅ pure websocket
-        //   }
-        // );
-        socketInstance = io({
-          path: "/api/socket",
-          transports: ["websocket"],
-        });
+        socketInstance = io(
+          process.env.NODE_ENV === "production"
+            ? undefined
+            : "https://web3-game-hub.onrender.com/",
+          {
+            path: "/api/socket",
+            transports: ["polling", "websocket"], // ✅ pure websocket
+          }
+        );
+        // socketInstance = io({
+        //   path: "/api/socket",
+        //   transports: ["websocket"],
+        // });
 
         socketInstance.on("connect", () => {
           console.log("✅ Socket connected:", socketInstance.id);
