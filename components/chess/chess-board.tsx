@@ -14,6 +14,7 @@ export function ChessBoard() {
   const [game] = useState(new Chess());
   const [board, setBoard] = useState(game.board());
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
+  const [validTargets, setValidTargets] = useState<Set<Square>>(new Set());
   const [playerColor, setPlayerColor] = useState<"w" | "b">("w");
   const {
     isReady,
@@ -24,6 +25,9 @@ export function ChessBoard() {
     createGame,
     makeMove,
     gameCode,
+    isFinished,
+    result,
+    reportGameOver,
   } = useChess();
 
   useEffect(() => {
@@ -68,13 +72,38 @@ export function ChessBoard() {
     try {
       game.move({ from: move.from, to: move.to });
       setBoard(game.board());
+      // Clear any local selection on opponent move
+      setSelectedSquare(null);
+      setValidTargets(new Set());
+      // Check for game over after opponent move
+      if (game.isGameOver()) {
+        // Determine reason
+        const reason = game.isCheckmate()
+          ? "checkmate"
+          : game.isStalemate()
+          ? "stalemate"
+          : game.isThreefoldRepetition()
+          ? "threefold"
+          : game.isInsufficientMaterial()
+          ? "insufficient"
+          : "draw";
+        // Winner is the side that just moved if checkmate
+        // Note: chess.js flip turn after move, so current turn is the loser
+        const winner = game.isCheckmate()
+          ? game.turn() === "w"
+            ? "black"
+            : "white"
+          : undefined;
+        // Inform hook/server to broadcast
+        reportGameOver({ reason, winner });
+      }
     } catch (error) {
       console.error("Invalid move:", error);
     }
   };
 
   const handleSquareClick = (square: Square) => {
-    if (!isMyTurn) return;
+    if (!isMyTurn || isFinished) return;
 
     if (selectedSquare) {
       try {
@@ -89,15 +118,43 @@ export function ChessBoard() {
           setBoard(game.board());
           // Emit the move via socket; useChess will flip turns
           makeMove(move as any);
+          // Check for game over after my move
+          if (game.isGameOver()) {
+            const reason = game.isCheckmate()
+              ? "checkmate"
+              : game.isStalemate()
+              ? "stalemate"
+              : game.isThreefoldRepetition()
+              ? "threefold"
+              : game.isInsufficientMaterial()
+              ? "insufficient"
+              : "draw";
+            const winner = game.isCheckmate()
+              ? game.turn() === "w"
+                ? "black"
+                : "white"
+              : undefined;
+            reportGameOver({ reason, winner });
+          }
         }
       } catch (error) {
         console.error("Invalid move:", error);
       }
       setSelectedSquare(null);
+      setValidTargets(new Set());
     } else {
       const piece = game.get(square);
       if (piece && piece.color === playerColor) {
         setSelectedSquare(square);
+        // Compute legal targets for visual hinting
+        try {
+          const moves = game.moves({ square, verbose: true }) as Array<{
+            to: Square;
+          }>;
+          setValidTargets(new Set(moves.map((m) => m.to)));
+        } catch {
+          setValidTargets(new Set());
+        }
       }
     }
   };
@@ -147,10 +204,11 @@ export function ChessBoard() {
                   className={`
                   w-full aspect-square
                   ${(file + rank) % 2 === 0 ? "bg-white" : "bg-gray-200"}
-                  ${isSelected ? "bg-blue-200" : ""}
+                  ${isSelected ? "bg-blue-200 ring-2 ring-blue-500" : ""}
                   flex items-center justify-center
                   cursor-pointer
                   ${playerColor === "b" ? "rotate-180" : ""}
+                  relative
                 `}
                   onClick={() => handleSquareClick(square)}
                 >
@@ -163,16 +221,42 @@ export function ChessBoard() {
                       {getPieceSymbol(piece)}
                     </div>
                   )}
+                  {/* Highlight available targets with a subtle dot */}
+                  {!isSelected && validTargets.has(square) && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-3 w-3 rounded-full bg-blue-500/60" />
+                    </div>
+                  )}
                 </div>
               );
             })}
         </div>
         <div className="mt-4 text-center">
-          {game.isGameOver()
-            ? `Game Over - ${game.isCheckmate() ? "Checkmate!" : "Draw"}`
-            : isMyTurn
-            ? "Your turn"
-            : "Opponent's turn"}
+          {isFinished ? (
+            <span className="text-white">
+              Game Over -{" "}
+              {result?.reason === "checkmate"
+                ? "Checkmate"
+                : result?.reason === "stalemate"
+                ? "Stalemate"
+                : result?.reason === "threefold"
+                ? "Threefold repetition"
+                : result?.reason === "insufficient"
+                ? "Insufficient material"
+                : "Draw"}
+              {result?.winner
+                ? ` • Winner: ${result.winner === "white" ? "White" : "Black"}`
+                : ""}
+            </span>
+          ) : game.isGameOver() ? (
+            <span className="text-white">
+              Game Over - {game.isCheckmate() ? "Checkmate" : "Draw"}
+            </span>
+          ) : isMyTurn ? (
+            "Your turn"
+          ) : (
+            "Opponent's turn"
+          )}
         </div>
       </CardContent>
     </Card>

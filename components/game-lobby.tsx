@@ -27,6 +27,19 @@ function ChessTabContent() {
     }
   }, [chess.isPlaying, chess.gameCode, router]);
 
+  // When rendering inside the lobby, don’t show stale chess codes from previous sessions
+  // If not currently playing and no in-memory gameCode, clear any persisted state
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onChessPage = window.location.pathname.startsWith("/chess");
+    if (onChessPage) return;
+    if (!chess.isPlaying && !chess.gameCode) {
+      try {
+        sessionStorage.removeItem("chess.state");
+      } catch {}
+    }
+  }, [chess.isPlaying, chess.gameCode]);
+
   const copyChessCode = () => {
     if (chess.gameCode) {
       navigator.clipboard.writeText(chess.gameCode);

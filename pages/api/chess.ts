@@ -146,6 +146,8 @@ export default async function ChessSocketHandler(
               const info = games.get(gameCode);
               if (info) {
                 const moverIsCreator = socket.id === info.creatorId;
+                // If game has already been marked concluded, ignore further turn changes
+                if ((info as any).finished) return;
                 info.currentTurn = moverIsCreator ? "black" : "white";
                 // Opponent gets the turn, mover loses
                 socket.to(gameCode).emit("chess:turn", { yourTurn: true });
@@ -157,6 +159,30 @@ export default async function ChessSocketHandler(
               }
             } catch (e) {
               socket.emit("chess:error", { message: "Failed to make move" });
+            }
+          }
+        );
+
+        // Game Over broadcast
+        socket.on(
+          "chess:gameOver",
+          ({
+            gameCode,
+            reason,
+            winner,
+          }: {
+            gameCode: string;
+            reason: string;
+            winner?: "white" | "black";
+          }) => {
+            try {
+              const info = games.get(gameCode);
+              if (info) (info as any).finished = true;
+              socket.to(gameCode).emit("chess:gameOver", { reason, winner });
+              socket.emit("chess:gameOver", { reason, winner });
+              // Keep game entry briefly to avoid late events; will be cleaned on leave
+            } catch (e) {
+              // ignore
             }
           }
         );

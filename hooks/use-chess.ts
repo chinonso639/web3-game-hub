@@ -10,6 +10,8 @@ export type ChessGameState = {
   color: ChessColor | null;
   isPlaying: boolean;
   isMyTurn: boolean;
+  isFinished?: boolean;
+  result?: { reason: string; winner?: ChessColor } | null;
 };
 
 export function useChess() {
@@ -22,12 +24,17 @@ export function useChess() {
     color: null,
     isPlaying: false,
     isMyTurn: false,
+    isFinished: false,
+    result: null,
   });
   const [lastMove, setLastMove] = useState<ChessMove | null>(null);
 
-  // Hydrate from sessionStorage so state persists within the same tab (not across tabs/users)
+  // Hydrate from sessionStorage only on the chess board route
   useEffect(() => {
     try {
+      if (typeof window === "undefined") return;
+      const onChessPage = window.location.pathname.startsWith("/chess");
+      if (!onChessPage) return;
       const stored = sessionStorage.getItem("chess.state");
       if (stored) {
         const parsed = JSON.parse(stored) as Partial<ChessGameState>;
@@ -37,6 +44,8 @@ export function useChess() {
           color: (parsed.color as ChessColor | null) ?? prev.color,
           isPlaying: parsed.isPlaying ?? prev.isPlaying,
           isMyTurn: parsed.isMyTurn ?? prev.isMyTurn,
+          isFinished: parsed.isFinished ?? false,
+          result: (parsed.result as any) ?? null,
         }));
         colorRef.current = (parsed.color as ChessColor | null) ?? null;
       }
@@ -186,7 +195,13 @@ export function useChess() {
   useEffect(() => {
     if (!chessSocket) return;
     const handleGameCreated = ({ gameCode }: { gameCode: string }) => {
-      setState((prev) => ({ ...prev, gameCode, isPlaying: false }));
+      setState((prev) => ({
+        ...prev,
+        gameCode,
+        isPlaying: false,
+        isFinished: false,
+        result: null,
+      }));
     };
     const handleJoined = ({
       color,
@@ -218,6 +233,8 @@ export function useChess() {
       setState((prev) => ({
         ...prev,
         isPlaying: true,
+        isFinished: false,
+        result: null,
         // Only decide turn if we already know color; otherwise keep previous and let handleJoined fix it
         isMyTurn: c ? first : prev.isMyTurn,
       }));
@@ -227,20 +244,40 @@ export function useChess() {
       // Turn will be driven by server 'chess:turn' events; do not flip here
       // setState((prev) => ({ ...prev, isMyTurn: true }));
     };
+    const handleGameOver = ({
+      reason,
+      winner,
+    }: {
+      reason: string;
+      winner?: ChessColor;
+    }) => {
+      setState((prev) => ({
+        ...prev,
+        isPlaying: false,
+        isFinished: true,
+        result: { reason, winner: winner ?? undefined },
+        isMyTurn: false,
+      }));
+    };
     const handleTurn = ({ yourTurn }: { yourTurn: boolean }) => {
-      setState((prev) => ({ ...prev, isMyTurn: yourTurn }));
+      setState((prev) => {
+        if (prev.isFinished) return prev; // ignore after finish
+        return { ...prev, isMyTurn: yourTurn };
+      });
     };
     chessSocket.on("chess:gameCreated", handleGameCreated);
     chessSocket.on("chess:joined", handleJoined);
     chessSocket.on("chess:gameStart", handleGameStart);
     chessSocket.on("chess:moveReceived", handleMove);
     chessSocket.on("chess:turn", handleTurn);
+    chessSocket.on("chess:gameOver", handleGameOver);
     return () => {
       chessSocket.off("chess:gameCreated", handleGameCreated);
       chessSocket.off("chess:joined", handleJoined);
       chessSocket.off("chess:gameStart", handleGameStart);
       chessSocket.off("chess:moveReceived", handleMove);
       chessSocket.off("chess:turn", handleTurn);
+      chessSocket.off("chess:gameOver", handleGameOver);
     };
   }, [chessSocket]);
 
@@ -255,14 +292,19 @@ export function useChess() {
     }
   }, [state.isPlaying]);
 
-  // Persist to sessionStorage on relevant state changes (tab-scoped)
+  // Persist to sessionStorage only on the chess board route
   useEffect(() => {
     try {
+      if (typeof window === "undefined") return;
+      const onChessPage = window.location.pathname.startsWith("/chess");
+      if (!onChessPage) return;
       const toStore: ChessGameState = {
         gameCode: state.gameCode,
         color: state.color,
         isPlaying: state.isPlaying,
         isMyTurn: state.isMyTurn,
+        isFinished: state.isFinished ?? false,
+        result: state.result ?? null,
       };
       sessionStorage.setItem("chess.state", JSON.stringify(toStore));
     } catch {
@@ -277,6 +319,23 @@ export function useChess() {
     createGame,
     joinGame,
     makeMove,
+    reportGameOver: async (payload: {
+      reason: string;
+      winner?: ChessColor;
+    }) => {
+      if (!chessSocket || !state.gameCode) return;
+      chessSocket.emit("chess:gameOver", {
+        gameCode: state.gameCode,
+        ...payload,
+      });
+      setState((prev) => ({
+        ...prev,
+        isPlaying: false,
+        isFinished: true,
+        result: { reason: payload.reason, winner: payload.winner },
+        isMyTurn: false,
+      }));
+    },
     async leaveGame() {
       if (!chessSocket || !state.gameCode) {
         // Clear local state regardless
@@ -288,6 +347,8 @@ export function useChess() {
           color: null,
           isPlaying: false,
           isMyTurn: false,
+          isFinished: false,
+          result: null,
         });
         return;
       }
@@ -306,6 +367,8 @@ export function useChess() {
         color: null,
         isPlaying: false,
         isMyTurn: false,
+        isFinished: false,
+        result: null,
       });
     },
   };
