@@ -50,6 +50,21 @@ export function useGame() {
       setGameState(gameState);
     });
 
+    // When reconnecting after backgrounding, ask server to rejoin and sync state
+    const handleConnect = () => {
+      if (address && gameState?.gameCode) {
+        socket.emit("rejoin-game", {
+          gameCode: gameState.gameCode,
+          walletAddress: address,
+        });
+      }
+    };
+    socket.on("connect", handleConnect);
+
+    socket.on("game-sync", (gs) => {
+      setGameState(gs);
+    });
+
     socket.on("error", (message) => {
       setError(message);
       setIsLoading(false);
@@ -63,8 +78,10 @@ export function useGame() {
       socket.off("round-complete");
       socket.off("next-round");
       socket.off("error");
+      socket.off("connect", handleConnect);
+      socket.off("game-sync");
     };
-  }, [socket]);
+  }, [socket, address, gameState?.gameCode]);
 
   const createGame = () => {
     if (!socket || !address) return;

@@ -54,7 +54,8 @@ export default async function SocketHandler(
           const gameState = gameManager.createGame(
             gameCode,
             socket.id,
-            player.nickname || "Anonymous"
+            player.nickname || "Anonymous",
+            walletAddress
           );
           socket.join(gameCode);
           socket.emit("game-created", { gameCode, gameState });
@@ -91,7 +92,8 @@ export default async function SocketHandler(
           const gameState = gameManager.joinGame(
             gameCode,
             socket.id,
-            player.nickname || "Anonymous"
+            player.nickname || "Anonymous",
+            walletAddress
           );
           if (gameState) {
             socket.join(gameCode);
@@ -118,6 +120,41 @@ export default async function SocketHandler(
           socket.emit("error", "Failed to join game");
         }
       });
+
+      // Allow a client to reattach to an existing game after reconnect/background
+      socket.on(
+        "rejoin-game",
+        ({
+          gameCode,
+          walletAddress,
+        }: {
+          gameCode: string;
+          walletAddress: string;
+        }) => {
+          try {
+            const game = gameManager.getGame(gameCode);
+            if (!game) {
+              socket.emit("error", "Game not found");
+              return;
+            }
+            const updated = gameManager.reconnectPlayer(
+              gameCode,
+              walletAddress,
+              socket.id
+            );
+            if (!updated) {
+              socket.emit("error", "Unable to rejoin game");
+              return;
+            }
+            socket.join(gameCode);
+            // Send current state to the rejoined player only
+            socket.emit("game-sync", updated);
+          } catch (err) {
+            console.error("Error rejoining game:", err);
+            socket.emit("error", "Failed to rejoin game");
+          }
+        }
+      );
 
       socket.on("make-guess", (data: { guess: number }) => {
         try {
